@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 
+	"github.com/TwiN/go-color"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -13,40 +14,58 @@ type Database struct {
 }
 
 const (
-	PORT = "27017"
-	URI  = "mongodb://localhost:" + PORT
+	DEFAULTPORT = "27017"
+	DEFAULTHOST = "localhost"
 )
 
-func Connect() *Database {
-	client, err := mongo.NewClient(options.Client().ApplyURI(URI))
+func catch(err error) {
 	if err != nil {
-		log.Println(err)
+		log.Println(color.Ize(color.Red, err.Error()))
 	}
+}
+
+func Connect(port string, host string) *Database {
+	if port == "" {
+		port = DEFAULTPORT
+	}
+	if host == "" {
+		host = DEFAULTHOST
+	}
+	URI := "mongodb://" + host + ":" + port
+
+	client, err := mongo.NewClient(options.Client().ApplyURI(URI))
+	catch(err)
 
 	err = client.Connect(context.TODO())
-	if err != nil {
-		log.Println(err)
+	catch(err)
+	if err == nil {
+		log.Println(color.Ize(color.Green, ">>> Connect to MongoDB Succesfully in :"+URI))
 	}
-	log.Println(">>> Connect to MongoDB Succesfully in " + URI)
+
+	defer client.Disconnect(context.TODO())
 
 	return &Database{
 		Client: client,
 	}
 }
 
-func TestConnection() {
+func TestConnection(port string, host string) {
+	if port == "" {
+		port = DEFAULTPORT
+	}
+	if host == "" {
+		host = DEFAULTHOST
+	}
+	URI := "mongodb://" + host + ":" + port
 	client, err := mongo.NewClient(options.Client().ApplyURI(URI))
-	if err != nil {
-		log.Println(err)
-	}
-
+	catch(err)
 	err = client.Connect(context.TODO())
-	if err != nil {
-		log.Println(err)
+	catch(err)
+	err = client.Ping(context.TODO(), nil)
+	catch(err)
+	if err == nil {
+		log.Println(color.Ize(color.Green, ">>> Connect to MongoDB Succesfully in "+URI))
 	}
-	log.Println(">>> Connect to MongoDB Succesfully in " + URI)
 	err = client.Disconnect(context.TODO())
-	if err != nil {
-		log.Println(err)
-	}
+	catch(err)
 }

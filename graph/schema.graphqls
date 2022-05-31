@@ -2,11 +2,43 @@
 #
 # https://gqlgen.com/getting-started/
 
-type Todo {
+type User {
   id: ID!
-  text: String!
-  done: Boolean!
-  user: User!
+  name: String
+  lastName: String
+  username: String!
+  password: String!
+  admin: Boolean
+  root: Boolean
+  verified: Boolean
+  reported: Boolean
+  reportReason: String
+  activeContract: Boolean
+  admissionDay: Date
+  unemploymentDay: Date
+  workedHours:Int
+  currentBranch: String
+  originBranch: String
+  
+  monetaryBonds: Float
+  monetaryDiscounts: Float
+
+  mail: String
+  alternativeMails: [String]
+  phone: String
+  alternativePhones: [String]
+  address: String
+  bornDay: Date
+  degreeStudy: String
+  relationShip: String
+  curp: String
+  citizenId: String
+  credentialId: String
+  originState: String
+  
+  score: String
+  qualities: String
+  defects: String
 }
 
 type User {
