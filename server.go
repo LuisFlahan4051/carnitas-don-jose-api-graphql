@@ -15,14 +15,13 @@ import (
 	"github.com/LuisFlahan4051/carnitas-don-jose-api-graphql/graph"
 	"github.com/LuisFlahan4051/carnitas-don-jose-api-graphql/graph/generated"
 	"github.com/TwiN/go-color"
-	"github.com/go-chi/chi"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/rs/cors"
 )
 
 const (
-	DEFAULTHOST     = "http://localhost"
+	DEFAULTHOST     = "localhost"
 	DEFAULTPORT_API = "8080"
 	DEFAULTHOST_API = DEFAULTHOST
 	DEFAULTPORT_DB  = "27017"
@@ -37,47 +36,75 @@ func catch(err error) {
 	}
 }
 
+// --------------------- GRAPH SERVER
+func addGraphqlServer(mux *mux.Router, uriApp string, uriApi string) *mux.Router {
+	graph := generated.NewExecutableSchema(generated.Config{
+		Resolvers: &graph.Resolver{},
+	})
+
+	graphServer := handler.NewDefaultServer(graph)
+	graphServer.AddTransport(&transport.Websocket{
+		Upgrader: websocket.Upgrader{
+			CheckOrigin: func(r *http.Request) bool {
+				// Check against your desired domains here
+				return r.Host == "http://"+uriApp
+			},
+			ReadBufferSize:  1024,
+			WriteBufferSize: 1024,
+		},
+	})
+
+	mux.Handle("/", playground.Handler("GraphQL playground", "/query"))
+	mux.Handle("/query", graphServer)
+
+	log.Println(color.Ize(color.Green, ">>> Connect to http://"+uriApi+"/query for GraphQL playground"))
+	return mux
+}
+
+// ------------------------ SERVE STATICS FILES
 //Need the react app built, the address is defined here
 func index(writer http.ResponseWriter, request *http.Request) {
-	indexTemplate := template.Must(template.ParseFiles("ui/build/index.html"))
+	indexTemplate := template.Must(template.ParseFiles("build/ui/index.html"))
 	indexTemplate.Execute(writer, nil)
 }
 
-func addUIHandler(mux *mux.Router, port string, host string) *mux.Router {
-	staticFiles := http.FileServer(http.Dir("ui/build/static/"))
+func addUIHandler(mux *mux.Router) *mux.Router {
+	staticFiles := http.FileServer(http.Dir("build/ui/static/"))
 
 	mux.PathPrefix("/static/").Handler(http.StripPrefix("/static/", staticFiles))
 	mux.HandleFunc("/", index)
 
-	fmt.Println("Port " + port + "Added Successfully!")
-	fmt.Println("Can open " + host + ":" + port + " in your web browser\n")
 	return mux
 }
 
-// func newMux() *mux.Router {
-// 	mux := mux.NewRouter()
+// ----------------------- MIX AND PREPARE ALL PORTS IN ONE SERVER
+func newMux(portApp string, hostApp string, portApi string, hostApi string) *mux.Router {
+	mux := mux.NewRouter()
 
-// 	//Use this for enable all origins of requests
-// 	mux.Use(cors.AllowAll().Handler)
+	//Use this for enable all origins of requests
+	mux.Use(cors.AllowAll().Handler)
 
-// 	//Use this for enable specific origins
-// 	/* mux.Use(cors.New(cors.Options{
-// 		AllowedOrigins:   []string{
-// 			"http://localhost:8080",
-// 			"http://localhost:"+port,
-// 		},
-// 		AllowCredentials: true,
-// 		Debug:            true,
-// 	}).Handler) */
-// 	mux = addUIHandler(mux)
-// 	mux = api.AddGraphqlServer(port, graphDoor, mux)
-// 	return mux
-// }
+	//Use this for enable specific origins
+	/* mux.Use(cors.New(cors.Options{
+		AllowedOrigins:   []string{
+			"http://"+ uirApp,
+			"http://localhost:8080",
+		},
+		AllowCredentials: true,
+		Debug:            true,
+	}).Handler) */
 
-// func runServer(mux *mux.Router) {
-// 	fmt.Println("Server working fine!")
-// 	log.Fatal(http.ListenAndServe(":"+port, mux))
-// }
+	// NOTE: Make some func for iterating the mux and add eny server.
+
+	mux = addUIHandler(mux)
+	mux = addGraphqlServer(mux, portApi, hostApi)
+	return mux
+}
+
+func runServer(mux *mux.Router, port string) {
+	fmt.Println("Server working fine!")
+	log.Fatal(http.ListenAndServe(":"+port, mux))
+}
 
 // func main() {
 // 	//FOR BUILD > go build -ldflags "-H windowsgui" -o main.exe
@@ -134,31 +161,8 @@ func main() {
 
 	//--------------------------------------------------------------------------
 
-	router := chi.NewRouter()
-	// Add CORS middleware around every request. More inf  https://github.com/rs/cors
-	router.Use(cors.AllowAll().Handler)
-	/* router.Use(cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:8080"},
-		AllowCredentials: true,
-		Debug:            true,
-	}).Handler) */
+	prepareMux := newMux(portApp, hostApp, portApi, hostApi)
 
-	srv := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: &graph.Resolver{}}))
-	srv.AddTransport(&transport.Websocket{
-		Upgrader: websocket.Upgrader{
-			CheckOrigin: func(r *http.Request) bool {
-				// Check against your desired domains here
-				return r.Host == uriApp
-			},
-			ReadBufferSize:  1024,
-			WriteBufferSize: 1024,
-		},
-	})
+	runServer(prepareMux, portApi)
 
-	router.Handle("/", playground.Handler("KrisstalNet", "/query"))
-	router.Handle("/query", srv)
-
-	log.Println(color.Ize(color.Green, ">>> Connect to "+uriApi+"for GraphQL playground"))
-	err := http.ListenAndServe(":"+portApi, router) //:8080
-	catch(err)
 }
