@@ -42,8 +42,6 @@ func Connect(port string, host string) *Database {
 		log.Println(color.Ize(color.Green, ">>> Connect to MongoDB Succesfully in :"+URI))
 	}
 
-	defer client.Disconnect(context.TODO())
-
 	return &Database{
 		Client: client,
 	}

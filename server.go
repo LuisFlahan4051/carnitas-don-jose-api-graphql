@@ -14,20 +14,11 @@ import (
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/LuisFlahan4051/carnitas-don-jose-api-graphql/graph"
 	"github.com/LuisFlahan4051/carnitas-don-jose-api-graphql/graph/generated"
+	"github.com/LuisFlahan4051/carnitas-don-jose-api-graphql/ports"
 	"github.com/TwiN/go-color"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/rs/cors"
-)
-
-const (
-	DEFAULTHOST     = "localhost"
-	DEFAULTPORT_API = "8080"
-	DEFAULTHOST_API = DEFAULTHOST
-	DEFAULTPORT_DB  = "27017"
-	DEFAULTHOST_DB  = DEFAULTHOST
-	DEFAULTPORT_APP = "3000"
-	DEFAULTHOST_APP = DEFAULTHOST
 )
 
 func catch(err error) {
@@ -57,7 +48,7 @@ func addGraphqlServer(mux *mux.Router, uriApp string, uriApi string) *mux.Router
 	mux.Handle("/", playground.Handler("GraphQL playground", "/query"))
 	mux.Handle("/query", graphServer)
 
-	log.Println(color.Ize(color.Green, ">>> Connect to http://"+uriApi+"/query for GraphQL playground"))
+	log.Println(color.Ize(color.Green, ">>> Connect to http://"+uriApi+" for GraphQL playground"))
 	return mux
 }
 
@@ -78,12 +69,11 @@ func addUIHandler(mux *mux.Router) *mux.Router {
 }
 
 // ----------------------- MIX AND PREPARE ALL PORTS IN ONE SERVER
-func newMux(portApp string, hostApp string, portApi string, hostApi string) *mux.Router {
+func newMux(portApi string, hostApi string) *mux.Router {
 	mux := mux.NewRouter()
 
 	//Use this for enable all origins of requests
 	mux.Use(cors.AllowAll().Handler)
-
 	//Use this for enable specific origins
 	/* mux.Use(cors.New(cors.Options{
 		AllowedOrigins:   []string{
@@ -95,28 +85,23 @@ func newMux(portApp string, hostApp string, portApi string, hostApi string) *mux
 	}).Handler) */
 
 	// NOTE: Make some func for iterating the mux and add eny server.
-
+	// ADD HANDLERS TO SERVE IN THE SAME PORT
 	mux = addUIHandler(mux)
 	mux = addGraphqlServer(mux, portApi, hostApi)
 	return mux
 }
 
 func runServer(mux *mux.Router, port string) {
-	fmt.Println("Server working fine!")
+	fmt.Println(color.Ize(color.Cyan, "Server working fine! http://localhost:"+port))
 	log.Fatal(http.ListenAndServe(":"+port, mux))
 }
 
-// func main() {
-// 	//FOR BUILD > go build -ldflags "-H windowsgui" -o main.exe
-
-// 	prepareMux := newMux()
-
-// 	go runServer(prepareMux)
-
-// 	database.TestConnection()
-
-// 	runElectron()
-// }
+func newServer(mux *mux.Router, port string, host string) *mux.Router {
+	mux.Use(cors.AllowAll().Handler)
+	fmt.Println(color.Ize(color.Cyan, "Server working fine! http://"+host+":"+port))
+	log.Fatal(http.ListenAndServe(":"+port, mux))
+	return mux
+}
 
 func main() {
 
@@ -132,27 +117,27 @@ func main() {
 
 	portApi := *portApiFlag
 	if portApi == "" {
-		portApi = DEFAULTPORT_API
+		portApi = ports.DEFAULTPORT_API
 	}
 	hostApi := *hostApiFlag
 	if hostApi == "" {
-		hostApi = DEFAULTHOST_API
+		hostApi = ports.DEFAULTHOST_API
 	}
 	portApp := *portAppFlag
 	if portApp == "" {
-		portApp = DEFAULTPORT_APP
+		portApp = ports.DEFAULTPORT_APP
 	}
 	hostApp := *hostAppFlag
 	if hostApp == "" {
-		hostApp = DEFAULTHOST_APP
+		hostApp = ports.DEFAULTHOST_APP
 	}
 	portDB := *portDBFlag
 	if portDB == "" {
-		portDB = DEFAULTPORT_DB
+		portDB = ports.DEFAULTPORT_DB
 	}
 	hostDB := *hostDBFlag
 	if hostDB == "" {
-		hostDB = DEFAULTHOST_DB
+		hostDB = ports.DEFAULTHOST_DB
 	}
 	uriApi := hostApi + ":" + portApi
 	uriApp := hostApp + ":" + portApp
@@ -161,8 +146,15 @@ func main() {
 
 	//--------------------------------------------------------------------------
 
-	prepareMux := newMux(portApp, hostApp, portApi, hostApi)
+	// USE THIS FOR A GENERAL SERVER
+	// prepareMux := newMux(portApp, hostApp, portApi, hostApi)
+	// runServer(prepareMux, portApi)
 
-	runServer(prepareMux, portApi)
-
+	// SERVERS
+	muxApi := mux.NewRouter()
+	muxApi = addGraphqlServer(muxApi, uriApp, uriApi)
+	newServer(muxApi, portApi, hostApi)
+	// muxApp := mux.NewRouter()
+	// muxApp = addUIHandler(muxApp)
+	// newServer(muxApp, portApp, hostApp)
 }

@@ -14,8 +14,8 @@ type User {
   reported: Boolean
   reportReason: String
   activeContract: Boolean
-  admissionDay: Date
-  unemploymentDay: Date
+  admissionDay: String
+  unemploymentDay: String
   workedHours:Int
   currentBranch: String
   originBranch: String
@@ -28,7 +28,7 @@ type User {
   phone: String
   alternativePhones: [String]
   address: String
-  bornDay: Date
+  bornDay: String
   degreeStudy: String
   relationShip: String
   curp: String
@@ -41,20 +41,49 @@ type User {
   defects: String
 }
 
-type User {
-  id: ID!
-  name: String!
-}
-
 type Query {
-  todos: [Todo!]!
+  users(id: ID!): [User]
 }
 
-input NewTodo {
-  text: String!
-  userId: String!
+input NewUser {
+  id: ID!
+  name: String
+  lastName: String
+  username: String!
+  password: String!
+  admin: Boolean
+  root: Boolean
+  verified: Boolean
+  reported: Boolean
+  reportReason: String
+  activeContract: Boolean
+  admissionDay: String
+  unemploymentDay: String
+  workedHours:Int
+  currentBranch: String
+  originBranch: String
+  
+  monetaryBonds: Float
+  monetaryDiscounts: Float
+
+  mail: String
+  alternativeMails: [String]
+  phone: String
+  alternativePhones: [String]
+  address: String
+  bornDay: String
+  degreeStudy: String
+  relationShip: String
+  curp: String
+  citizenId: String
+  credentialId: String
+  originState: String
+  
+  score: String
+  qualities: String
+  defects: String
 }
 
 type Mutation {
-  createTodo(input: NewTodo!): Todo!
+  createUser(input: NewUser!): User!
 }
