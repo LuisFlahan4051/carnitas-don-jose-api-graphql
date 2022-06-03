@@ -48,7 +48,8 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		Users func(childComplexity int, id string) int
+		UserByUsername func(childComplexity int, username *string) int
+		Users          func(childComplexity int) int
 	}
 
 	User struct {
@@ -92,7 +93,8 @@ type MutationResolver interface {
 	CreateUser(ctx context.Context, input model.NewUser) (*model.User, error)
 }
 type QueryResolver interface {
-	Users(ctx context.Context, id string) ([]*model.User, error)
+	Users(ctx context.Context) ([]*model.User, error)
+	UserByUsername(ctx context.Context, username *string) (*model.User, error)
 }
 
 type executableSchema struct {
@@ -122,17 +124,24 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.CreateUser(childComplexity, args["input"].(model.NewUser)), true
 
+	case "Query.userByUsername":
+		if e.complexity.Query.UserByUsername == nil {
+			break
+		}
+
+		args, err := ec.field_Query_userByUsername_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.UserByUsername(childComplexity, args["username"].(*string)), true
+
 	case "Query.users":
 		if e.complexity.Query.Users == nil {
 			break
 		}
 
-		args, err := ec.field_Query_users_args(context.TODO(), rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Query.Users(childComplexity, args["id"].(string)), true
+		return e.complexity.Query.Users(childComplexity), true
 
 	case "User.activeContract":
 		if e.complexity.User.ActiveContract == nil {
@@ -478,7 +487,8 @@ type User {
 }
 
 type Query {
-  users(id: ID!): [User]
+  users: [User]
+  userByUsername(username: String): User
 }
 
 input NewUser {
@@ -561,18 +571,18 @@ func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs
 	return args, nil
 }
 
-func (ec *executionContext) field_Query_users_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+func (ec *executionContext) field_Query_userByUsername_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
-	var arg0 string
-	if tmp, ok := rawArgs["id"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
-		arg0, err = ec.unmarshalNID2string(ctx, tmp)
+	var arg0 *string
+	if tmp, ok := rawArgs["username"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("username"))
+		arg0, err = ec.unmarshalOString2ᚖstring(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
 	}
-	args["id"] = arg0
+	args["username"] = arg0
 	return args, nil
 }
 
@@ -751,7 +761,7 @@ func (ec *executionContext) _Query_users(ctx context.Context, field graphql.Coll
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().Users(rctx, fc.Args["id"].(string))
+		return ec.resolvers.Query().Users(rctx)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -843,6 +853,115 @@ func (ec *executionContext) fieldContext_Query_users(ctx context.Context, field 
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
 	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_userByUsername(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_userByUsername(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().UserByUsername(rctx, fc.Args["username"].(*string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.User)
+	fc.Result = res
+	return ec.marshalOUser2ᚖgithubᚗcomᚋLuisFlahan4051ᚋcarnitasᚑdonᚑjoseᚑapiᚑgraphqlᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_userByUsername(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_User_id(ctx, field)
+			case "name":
+				return ec.fieldContext_User_name(ctx, field)
+			case "lastName":
+				return ec.fieldContext_User_lastName(ctx, field)
+			case "username":
+				return ec.fieldContext_User_username(ctx, field)
+			case "password":
+				return ec.fieldContext_User_password(ctx, field)
+			case "admin":
+				return ec.fieldContext_User_admin(ctx, field)
+			case "root":
+				return ec.fieldContext_User_root(ctx, field)
+			case "verified":
+				return ec.fieldContext_User_verified(ctx, field)
+			case "reported":
+				return ec.fieldContext_User_reported(ctx, field)
+			case "reportReason":
+				return ec.fieldContext_User_reportReason(ctx, field)
+			case "activeContract":
+				return ec.fieldContext_User_activeContract(ctx, field)
+			case "admissionDay":
+				return ec.fieldContext_User_admissionDay(ctx, field)
+			case "unemploymentDay":
+				return ec.fieldContext_User_unemploymentDay(ctx, field)
+			case "workedHours":
+				return ec.fieldContext_User_workedHours(ctx, field)
+			case "currentBranch":
+				return ec.fieldContext_User_currentBranch(ctx, field)
+			case "originBranch":
+				return ec.fieldContext_User_originBranch(ctx, field)
+			case "monetaryBonds":
+				return ec.fieldContext_User_monetaryBonds(ctx, field)
+			case "monetaryDiscounts":
+				return ec.fieldContext_User_monetaryDiscounts(ctx, field)
+			case "mail":
+				return ec.fieldContext_User_mail(ctx, field)
+			case "alternativeMails":
+				return ec.fieldContext_User_alternativeMails(ctx, field)
+			case "phone":
+				return ec.fieldContext_User_phone(ctx, field)
+			case "alternativePhones":
+				return ec.fieldContext_User_alternativePhones(ctx, field)
+			case "address":
+				return ec.fieldContext_User_address(ctx, field)
+			case "bornDay":
+				return ec.fieldContext_User_bornDay(ctx, field)
+			case "degreeStudy":
+				return ec.fieldContext_User_degreeStudy(ctx, field)
+			case "relationShip":
+				return ec.fieldContext_User_relationShip(ctx, field)
+			case "curp":
+				return ec.fieldContext_User_curp(ctx, field)
+			case "citizenId":
+				return ec.fieldContext_User_citizenId(ctx, field)
+			case "credentialId":
+				return ec.fieldContext_User_credentialId(ctx, field)
+			case "originState":
+				return ec.fieldContext_User_originState(ctx, field)
+			case "score":
+				return ec.fieldContext_User_score(ctx, field)
+			case "qualities":
+				return ec.fieldContext_User_qualities(ctx, field)
+			case "defects":
+				return ec.fieldContext_User_defects(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
+		},
+	}
 	defer func() {
 		if r := recover(); r != nil {
 			err = ec.Recover(ctx, r)
@@ -850,7 +969,7 @@ func (ec *executionContext) fieldContext_Query_users(ctx context.Context, field 
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Query_users_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Query_userByUsername_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return
 	}
@@ -4476,6 +4595,26 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_users(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx, innerFunc)
+			}
+
+			out.Concurrently(i, func() graphql.Marshaler {
+				return rrm(innerCtx)
+			})
+		case "userByUsername":
+			field := field
+
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_userByUsername(ctx, field)
 				return res
 			}
 

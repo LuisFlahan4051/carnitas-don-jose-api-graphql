@@ -42,7 +42,8 @@ type User {
 }
 
 type Query {
-  users(id: ID!): [User]
+  users: [User]
+  userByUsername(username: String): User
 }
 
 input NewUser {
