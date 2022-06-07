@@ -88,3 +88,45 @@ input NewUser {
 type Mutation {
   createUser(input: NewUser!): User!
 }
+
+# ------------------------------------------------------------------------------
+# mutation{createUser(input:{
+#   id: "1LuisFlahan240201",
+#   name: "Luis Fernando", 
+#   lastName: "Melendez Bustamante", 
+#   username: "LuisFlahan", 
+#   password: "4051",
+#   root: true,
+#   admin: true,
+#   activeContract: true
+# }){
+#     id
+#     name
+#     lastName
+#     username
+#     password
+#     root
+#     admin
+#     activeContract
+#   }
+# }
+
+# query {
+#   users{
+#     id
+#     name
+#     lastName
+#     username
+#     password
+#   }
+# }
+
+# query { 
+#   userByUsername(username: "LuisFlahan"){
+#     id
+#     name
+#     lastName
+#     username
+#     password
+#   }
+# }

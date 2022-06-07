@@ -154,7 +154,7 @@ func main() {
 	muxApi := mux.NewRouter()
 	muxApi = addGraphqlServer(muxApi, uriApp, uriApi)
 	newServer(muxApi, portApi, hostApi)
-	// muxApp := mux.NewRouter()
-	// muxApp = addUIHandler(muxApp)
-	// newServer(muxApp, portApp, hostApp)
+	//muxApp := mux.NewRouter()
+	//muxApp = addUIHandler(muxApp)
+	//newServer(muxApp, portApp, hostApp)
 }
