@@ -1,13 +1,14 @@
 # GraphQL schema example
 #
 # https://gqlgen.com/getting-started/
+# go run github.com/99designs/gqlgen generate
 
 type User {
   id: ID!
   name: String
   lastName: String
-  username: String!
-  password: String!
+  username: String
+  password: String
   admin: Boolean
   root: Boolean
   verified: Boolean
@@ -39,11 +40,18 @@ type User {
   score: String
   qualities: String
   defects: String
+
+  darktheme: Boolean 
 }
 
 type Query {
   users: [User]
   userByUsername(username: String): User
+  userById(id: ID): User
+  validateUser(
+    username: String
+    password: String
+  ): Boolean
 }
 
 input NewUser {
@@ -83,10 +91,55 @@ input NewUser {
   score: String
   qualities: String
   defects: String
+
+  darktheme: Boolean 
+}
+
+input updateUser{
+  id: ID!
+  name: String
+  lastName: String
+  username: String!
+  password: String!
+  admin: Boolean
+  root: Boolean
+  verified: Boolean
+  reported: Boolean
+  reportReason: String
+  activeContract: Boolean
+  admissionDay: String
+  unemploymentDay: String
+  workedHours:Int
+  currentBranch: String
+  originBranch: String
+  
+  monetaryBonds: Float
+  monetaryDiscounts: Float
+
+  mail: String
+  alternativeMails: [String]
+  phone: String
+  alternativePhones: [String]
+  address: String
+  bornDay: String
+  degreeStudy: String
+  relationShip: String
+  curp: String
+  citizenId: String
+  credentialId: String
+  originState: String
+  
+  score: String
+  qualities: String
+  defects: String
+
+  darktheme: Boolean 
 }
 
 type Mutation {
   createUser(input: NewUser!): User!
+  updateUser(input: updateUser!): User!
+  delateUser(input: updateUser!): User!
 }
 
 # ------------------------------------------------------------------------------
@@ -100,6 +153,28 @@ type Mutation {
 #   admin: true,
 #   activeContract: true
 # }){
+#     id
+#     name
+#     lastName
+#     username
+#     password
+#     root
+#     admin
+#     activeContract
+#   }
+# }
+
+# mutation{
+#   createUser(input:{
+#     id: "3Kriss121281",
+#     name: "Cristina de Guadalupe",
+#     lastName: "Bustamante Enriquez",
+#     username: "Kriss"
+#     password: "123"
+#     root: false,
+#     admin: true,
+#     activeContract: false
+#   }){
 #     id
 #     name
 #     lastName
@@ -126,6 +201,14 @@ type Mutation {
 #     id
 #     name
 #     lastName
+#     username
+#     password
+#   }
+# }
+
+# mutation{
+#   delateUser(input:{id: "1LuisFlahan24020100", username:"LuisFlahan", password:"4051"}){
+#     id
 #     username
 #     password
 #   }

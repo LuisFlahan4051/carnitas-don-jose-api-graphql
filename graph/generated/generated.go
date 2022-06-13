@@ -45,11 +45,15 @@ type DirectiveRoot struct {
 type ComplexityRoot struct {
 	Mutation struct {
 		CreateUser func(childComplexity int, input model.NewUser) int
+		DelateUser func(childComplexity int, input model.UpdateUser) int
+		UpdateUser func(childComplexity int, input model.UpdateUser) int
 	}
 
 	Query struct {
+		UserByID       func(childComplexity int, id *string) int
 		UserByUsername func(childComplexity int, username *string) int
 		Users          func(childComplexity int) int
+		ValidateUser   func(childComplexity int, username *string, password *string) int
 	}
 
 	User struct {
@@ -64,6 +68,7 @@ type ComplexityRoot struct {
 		CredentialID      func(childComplexity int) int
 		Curp              func(childComplexity int) int
 		CurrentBranch     func(childComplexity int) int
+		Darktheme         func(childComplexity int) int
 		Defects           func(childComplexity int) int
 		DegreeStudy       func(childComplexity int) int
 		ID                func(childComplexity int) int
@@ -91,10 +96,14 @@ type ComplexityRoot struct {
 
 type MutationResolver interface {
 	CreateUser(ctx context.Context, input model.NewUser) (*model.User, error)
+	UpdateUser(ctx context.Context, input model.UpdateUser) (*model.User, error)
+	DelateUser(ctx context.Context, input model.UpdateUser) (*model.User, error)
 }
 type QueryResolver interface {
 	Users(ctx context.Context) ([]*model.User, error)
 	UserByUsername(ctx context.Context, username *string) (*model.User, error)
+	UserByID(ctx context.Context, id *string) (*model.User, error)
+	ValidateUser(ctx context.Context, username *string, password *string) (*bool, error)
 }
 
 type executableSchema struct {
@@ -124,6 +133,42 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.CreateUser(childComplexity, args["input"].(model.NewUser)), true
 
+	case "Mutation.delateUser":
+		if e.complexity.Mutation.DelateUser == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_delateUser_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.DelateUser(childComplexity, args["input"].(model.UpdateUser)), true
+
+	case "Mutation.updateUser":
+		if e.complexity.Mutation.UpdateUser == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateUser_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UpdateUser(childComplexity, args["input"].(model.UpdateUser)), true
+
+	case "Query.userById":
+		if e.complexity.Query.UserByID == nil {
+			break
+		}
+
+		args, err := ec.field_Query_userById_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.UserByID(childComplexity, args["id"].(*string)), true
+
 	case "Query.userByUsername":
 		if e.complexity.Query.UserByUsername == nil {
 			break
@@ -142,6 +187,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.Users(childComplexity), true
+
+	case "Query.validateUser":
+		if e.complexity.Query.ValidateUser == nil {
+			break
+		}
+
+		args, err := ec.field_Query_validateUser_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.ValidateUser(childComplexity, args["username"].(*string), args["password"].(*string)), true
 
 	case "User.activeContract":
 		if e.complexity.User.ActiveContract == nil {
@@ -219,6 +276,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.User.CurrentBranch(childComplexity), true
+
+	case "User.darktheme":
+		if e.complexity.User.Darktheme == nil {
+			break
+		}
+
+		return e.complexity.User.Darktheme(childComplexity), true
 
 	case "User.defects":
 		if e.complexity.User.Defects == nil {
@@ -383,6 +447,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	ec := executionContext{rc, e}
 	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
 		ec.unmarshalInputNewUser,
+		ec.unmarshalInputupdateUser,
 	)
 	first := true
 
@@ -446,13 +511,14 @@ var sources = []*ast.Source{
 	{Name: "../schema.graphqls", Input: `# GraphQL schema example
 #
 # https://gqlgen.com/getting-started/
+# go run github.com/99designs/gqlgen generate
 
 type User {
   id: ID!
   name: String
   lastName: String
-  username: String!
-  password: String!
+  username: String
+  password: String
   admin: Boolean
   root: Boolean
   verified: Boolean
@@ -484,11 +550,18 @@ type User {
   score: String
   qualities: String
   defects: String
+
+  darktheme: Boolean 
 }
 
 type Query {
   users: [User]
   userByUsername(username: String): User
+  userById(id: ID): User
+  validateUser(
+    username: String
+    password: String
+  ): Boolean
 }
 
 input NewUser {
@@ -528,12 +601,128 @@ input NewUser {
   score: String
   qualities: String
   defects: String
+
+  darktheme: Boolean 
+}
+
+input updateUser{
+  id: ID!
+  name: String
+  lastName: String
+  username: String!
+  password: String!
+  admin: Boolean
+  root: Boolean
+  verified: Boolean
+  reported: Boolean
+  reportReason: String
+  activeContract: Boolean
+  admissionDay: String
+  unemploymentDay: String
+  workedHours:Int
+  currentBranch: String
+  originBranch: String
+  
+  monetaryBonds: Float
+  monetaryDiscounts: Float
+
+  mail: String
+  alternativeMails: [String]
+  phone: String
+  alternativePhones: [String]
+  address: String
+  bornDay: String
+  degreeStudy: String
+  relationShip: String
+  curp: String
+  citizenId: String
+  credentialId: String
+  originState: String
+  
+  score: String
+  qualities: String
+  defects: String
+
+  darktheme: Boolean 
 }
 
 type Mutation {
   createUser(input: NewUser!): User!
+  updateUser(input: updateUser!): User!
+  delateUser(input: updateUser!): User!
 }
-`, BuiltIn: false},
+
+# ------------------------------------------------------------------------------
+# mutation{createUser(input:{
+#   id: "1LuisFlahan240201",
+#   name: "Luis Fernando", 
+#   lastName: "Melendez Bustamante", 
+#   username: "LuisFlahan", 
+#   password: "4051",
+#   root: true,
+#   admin: true,
+#   activeContract: true
+# }){
+#     id
+#     name
+#     lastName
+#     username
+#     password
+#     root
+#     admin
+#     activeContract
+#   }
+# }
+
+# mutation{
+#   createUser(input:{
+#     id: "3Kriss121281",
+#     name: "Cristina de Guadalupe",
+#     lastName: "Bustamante Enriquez",
+#     username: "Kriss"
+#     password: "123"
+#     root: false,
+#     admin: true,
+#     activeContract: false
+#   }){
+#     id
+#     name
+#     lastName
+#     username
+#     password
+#     root
+#     admin
+#     activeContract
+#   }
+# }
+
+# query {
+#   users{
+#     id
+#     name
+#     lastName
+#     username
+#     password
+#   }
+# }
+
+# query { 
+#   userByUsername(username: "LuisFlahan"){
+#     id
+#     name
+#     lastName
+#     username
+#     password
+#   }
+# }
+
+# mutation{
+#   delateUser(input:{id: "1LuisFlahan24020100", username:"LuisFlahan", password:"4051"}){
+#     id
+#     username
+#     password
+#   }
+# }`, BuiltIn: false},
 }
 var parsedSchema = gqlparser.MustLoadSchema(sources...)
 
@@ -548,6 +737,36 @@ func (ec *executionContext) field_Mutation_createUser_args(ctx context.Context, 
 	if tmp, ok := rawArgs["input"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
 		arg0, err = ec.unmarshalNNewUser2githubᚗcomᚋLuisFlahan4051ᚋcarnitasᚑdonᚑjoseᚑapiᚑgraphqlᚋgraphᚋmodelᚐNewUser(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_delateUser_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 model.UpdateUser
+	if tmp, ok := rawArgs["input"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+		arg0, err = ec.unmarshalNupdateUser2githubᚗcomᚋLuisFlahan4051ᚋcarnitasᚑdonᚑjoseᚑapiᚑgraphqlᚋgraphᚋmodelᚐUpdateUser(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_updateUser_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 model.UpdateUser
+	if tmp, ok := rawArgs["input"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+		arg0, err = ec.unmarshalNupdateUser2githubᚗcomᚋLuisFlahan4051ᚋcarnitasᚑdonᚑjoseᚑapiᚑgraphqlᚋgraphᚋmodelᚐUpdateUser(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -571,6 +790,21 @@ func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs
 	return args, nil
 }
 
+func (ec *executionContext) field_Query_userById_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 *string
+	if tmp, ok := rawArgs["id"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+		arg0, err = ec.unmarshalOID2ᚖstring(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Query_userByUsername_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
@@ -583,6 +817,30 @@ func (ec *executionContext) field_Query_userByUsername_args(ctx context.Context,
 		}
 	}
 	args["username"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_validateUser_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 *string
+	if tmp, ok := rawArgs["username"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("username"))
+		arg0, err = ec.unmarshalOString2ᚖstring(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["username"] = arg0
+	var arg1 *string
+	if tmp, ok := rawArgs["password"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("password"))
+		arg1, err = ec.unmarshalOString2ᚖstring(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["password"] = arg1
 	return args, nil
 }
 
@@ -729,6 +987,8 @@ func (ec *executionContext) fieldContext_Mutation_createUser(ctx context.Context
 				return ec.fieldContext_User_qualities(ctx, field)
 			case "defects":
 				return ec.fieldContext_User_defects(ctx, field)
+			case "darktheme":
+				return ec.fieldContext_User_darktheme(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -741,6 +1001,256 @@ func (ec *executionContext) fieldContext_Mutation_createUser(ctx context.Context
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_createUser_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateUser(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_updateUser(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().UpdateUser(rctx, fc.Args["input"].(model.UpdateUser))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.User)
+	fc.Result = res
+	return ec.marshalNUser2ᚖgithubᚗcomᚋLuisFlahan4051ᚋcarnitasᚑdonᚑjoseᚑapiᚑgraphqlᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_updateUser(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_User_id(ctx, field)
+			case "name":
+				return ec.fieldContext_User_name(ctx, field)
+			case "lastName":
+				return ec.fieldContext_User_lastName(ctx, field)
+			case "username":
+				return ec.fieldContext_User_username(ctx, field)
+			case "password":
+				return ec.fieldContext_User_password(ctx, field)
+			case "admin":
+				return ec.fieldContext_User_admin(ctx, field)
+			case "root":
+				return ec.fieldContext_User_root(ctx, field)
+			case "verified":
+				return ec.fieldContext_User_verified(ctx, field)
+			case "reported":
+				return ec.fieldContext_User_reported(ctx, field)
+			case "reportReason":
+				return ec.fieldContext_User_reportReason(ctx, field)
+			case "activeContract":
+				return ec.fieldContext_User_activeContract(ctx, field)
+			case "admissionDay":
+				return ec.fieldContext_User_admissionDay(ctx, field)
+			case "unemploymentDay":
+				return ec.fieldContext_User_unemploymentDay(ctx, field)
+			case "workedHours":
+				return ec.fieldContext_User_workedHours(ctx, field)
+			case "currentBranch":
+				return ec.fieldContext_User_currentBranch(ctx, field)
+			case "originBranch":
+				return ec.fieldContext_User_originBranch(ctx, field)
+			case "monetaryBonds":
+				return ec.fieldContext_User_monetaryBonds(ctx, field)
+			case "monetaryDiscounts":
+				return ec.fieldContext_User_monetaryDiscounts(ctx, field)
+			case "mail":
+				return ec.fieldContext_User_mail(ctx, field)
+			case "alternativeMails":
+				return ec.fieldContext_User_alternativeMails(ctx, field)
+			case "phone":
+				return ec.fieldContext_User_phone(ctx, field)
+			case "alternativePhones":
+				return ec.fieldContext_User_alternativePhones(ctx, field)
+			case "address":
+				return ec.fieldContext_User_address(ctx, field)
+			case "bornDay":
+				return ec.fieldContext_User_bornDay(ctx, field)
+			case "degreeStudy":
+				return ec.fieldContext_User_degreeStudy(ctx, field)
+			case "relationShip":
+				return ec.fieldContext_User_relationShip(ctx, field)
+			case "curp":
+				return ec.fieldContext_User_curp(ctx, field)
+			case "citizenId":
+				return ec.fieldContext_User_citizenId(ctx, field)
+			case "credentialId":
+				return ec.fieldContext_User_credentialId(ctx, field)
+			case "originState":
+				return ec.fieldContext_User_originState(ctx, field)
+			case "score":
+				return ec.fieldContext_User_score(ctx, field)
+			case "qualities":
+				return ec.fieldContext_User_qualities(ctx, field)
+			case "defects":
+				return ec.fieldContext_User_defects(ctx, field)
+			case "darktheme":
+				return ec.fieldContext_User_darktheme(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateUser_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_delateUser(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_delateUser(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().DelateUser(rctx, fc.Args["input"].(model.UpdateUser))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.User)
+	fc.Result = res
+	return ec.marshalNUser2ᚖgithubᚗcomᚋLuisFlahan4051ᚋcarnitasᚑdonᚑjoseᚑapiᚑgraphqlᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_delateUser(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_User_id(ctx, field)
+			case "name":
+				return ec.fieldContext_User_name(ctx, field)
+			case "lastName":
+				return ec.fieldContext_User_lastName(ctx, field)
+			case "username":
+				return ec.fieldContext_User_username(ctx, field)
+			case "password":
+				return ec.fieldContext_User_password(ctx, field)
+			case "admin":
+				return ec.fieldContext_User_admin(ctx, field)
+			case "root":
+				return ec.fieldContext_User_root(ctx, field)
+			case "verified":
+				return ec.fieldContext_User_verified(ctx, field)
+			case "reported":
+				return ec.fieldContext_User_reported(ctx, field)
+			case "reportReason":
+				return ec.fieldContext_User_reportReason(ctx, field)
+			case "activeContract":
+				return ec.fieldContext_User_activeContract(ctx, field)
+			case "admissionDay":
+				return ec.fieldContext_User_admissionDay(ctx, field)
+			case "unemploymentDay":
+				return ec.fieldContext_User_unemploymentDay(ctx, field)
+			case "workedHours":
+				return ec.fieldContext_User_workedHours(ctx, field)
+			case "currentBranch":
+				return ec.fieldContext_User_currentBranch(ctx, field)
+			case "originBranch":
+				return ec.fieldContext_User_originBranch(ctx, field)
+			case "monetaryBonds":
+				return ec.fieldContext_User_monetaryBonds(ctx, field)
+			case "monetaryDiscounts":
+				return ec.fieldContext_User_monetaryDiscounts(ctx, field)
+			case "mail":
+				return ec.fieldContext_User_mail(ctx, field)
+			case "alternativeMails":
+				return ec.fieldContext_User_alternativeMails(ctx, field)
+			case "phone":
+				return ec.fieldContext_User_phone(ctx, field)
+			case "alternativePhones":
+				return ec.fieldContext_User_alternativePhones(ctx, field)
+			case "address":
+				return ec.fieldContext_User_address(ctx, field)
+			case "bornDay":
+				return ec.fieldContext_User_bornDay(ctx, field)
+			case "degreeStudy":
+				return ec.fieldContext_User_degreeStudy(ctx, field)
+			case "relationShip":
+				return ec.fieldContext_User_relationShip(ctx, field)
+			case "curp":
+				return ec.fieldContext_User_curp(ctx, field)
+			case "citizenId":
+				return ec.fieldContext_User_citizenId(ctx, field)
+			case "credentialId":
+				return ec.fieldContext_User_credentialId(ctx, field)
+			case "originState":
+				return ec.fieldContext_User_originState(ctx, field)
+			case "score":
+				return ec.fieldContext_User_score(ctx, field)
+			case "qualities":
+				return ec.fieldContext_User_qualities(ctx, field)
+			case "defects":
+				return ec.fieldContext_User_defects(ctx, field)
+			case "darktheme":
+				return ec.fieldContext_User_darktheme(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_delateUser_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return
 	}
@@ -849,6 +1359,8 @@ func (ec *executionContext) fieldContext_Query_users(ctx context.Context, field 
 				return ec.fieldContext_User_qualities(ctx, field)
 			case "defects":
 				return ec.fieldContext_User_defects(ctx, field)
+			case "darktheme":
+				return ec.fieldContext_User_darktheme(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -958,6 +1470,8 @@ func (ec *executionContext) fieldContext_Query_userByUsername(ctx context.Contex
 				return ec.fieldContext_User_qualities(ctx, field)
 			case "defects":
 				return ec.fieldContext_User_defects(ctx, field)
+			case "darktheme":
+				return ec.fieldContext_User_darktheme(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -970,6 +1484,180 @@ func (ec *executionContext) fieldContext_Query_userByUsername(ctx context.Contex
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_userByUsername_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_userById(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_userById(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().UserByID(rctx, fc.Args["id"].(*string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.User)
+	fc.Result = res
+	return ec.marshalOUser2ᚖgithubᚗcomᚋLuisFlahan4051ᚋcarnitasᚑdonᚑjoseᚑapiᚑgraphqlᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_userById(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_User_id(ctx, field)
+			case "name":
+				return ec.fieldContext_User_name(ctx, field)
+			case "lastName":
+				return ec.fieldContext_User_lastName(ctx, field)
+			case "username":
+				return ec.fieldContext_User_username(ctx, field)
+			case "password":
+				return ec.fieldContext_User_password(ctx, field)
+			case "admin":
+				return ec.fieldContext_User_admin(ctx, field)
+			case "root":
+				return ec.fieldContext_User_root(ctx, field)
+			case "verified":
+				return ec.fieldContext_User_verified(ctx, field)
+			case "reported":
+				return ec.fieldContext_User_reported(ctx, field)
+			case "reportReason":
+				return ec.fieldContext_User_reportReason(ctx, field)
+			case "activeContract":
+				return ec.fieldContext_User_activeContract(ctx, field)
+			case "admissionDay":
+				return ec.fieldContext_User_admissionDay(ctx, field)
+			case "unemploymentDay":
+				return ec.fieldContext_User_unemploymentDay(ctx, field)
+			case "workedHours":
+				return ec.fieldContext_User_workedHours(ctx, field)
+			case "currentBranch":
+				return ec.fieldContext_User_currentBranch(ctx, field)
+			case "originBranch":
+				return ec.fieldContext_User_originBranch(ctx, field)
+			case "monetaryBonds":
+				return ec.fieldContext_User_monetaryBonds(ctx, field)
+			case "monetaryDiscounts":
+				return ec.fieldContext_User_monetaryDiscounts(ctx, field)
+			case "mail":
+				return ec.fieldContext_User_mail(ctx, field)
+			case "alternativeMails":
+				return ec.fieldContext_User_alternativeMails(ctx, field)
+			case "phone":
+				return ec.fieldContext_User_phone(ctx, field)
+			case "alternativePhones":
+				return ec.fieldContext_User_alternativePhones(ctx, field)
+			case "address":
+				return ec.fieldContext_User_address(ctx, field)
+			case "bornDay":
+				return ec.fieldContext_User_bornDay(ctx, field)
+			case "degreeStudy":
+				return ec.fieldContext_User_degreeStudy(ctx, field)
+			case "relationShip":
+				return ec.fieldContext_User_relationShip(ctx, field)
+			case "curp":
+				return ec.fieldContext_User_curp(ctx, field)
+			case "citizenId":
+				return ec.fieldContext_User_citizenId(ctx, field)
+			case "credentialId":
+				return ec.fieldContext_User_credentialId(ctx, field)
+			case "originState":
+				return ec.fieldContext_User_originState(ctx, field)
+			case "score":
+				return ec.fieldContext_User_score(ctx, field)
+			case "qualities":
+				return ec.fieldContext_User_qualities(ctx, field)
+			case "defects":
+				return ec.fieldContext_User_defects(ctx, field)
+			case "darktheme":
+				return ec.fieldContext_User_darktheme(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_userById_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_validateUser(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_validateUser(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().ValidateUser(rctx, fc.Args["username"].(*string), fc.Args["password"].(*string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*bool)
+	fc.Result = res
+	return ec.marshalOBoolean2ᚖbool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_validateUser(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_validateUser_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return
 	}
@@ -1252,14 +1940,11 @@ func (ec *executionContext) _User_username(ctx context.Context, field graphql.Co
 		return graphql.Null
 	}
 	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(*string)
 	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_User_username(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -1296,14 +1981,11 @@ func (ec *executionContext) _User_password(ctx context.Context, field graphql.Co
 		return graphql.Null
 	}
 	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(*string)
 	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_User_password(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -2462,6 +3144,47 @@ func (ec *executionContext) fieldContext_User_defects(ctx context.Context, field
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _User_darktheme(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_User_darktheme(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Darktheme, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*bool)
+	fc.Result = res
+	return ec.marshalOBoolean2ᚖbool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_User_darktheme(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
 		},
 	}
 	return fc, nil
@@ -4513,6 +5236,301 @@ func (ec *executionContext) unmarshalInputNewUser(ctx context.Context, obj inter
 			if err != nil {
 				return it, err
 			}
+		case "darktheme":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("darktheme"))
+			it.Darktheme, err = ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputupdateUser(ctx context.Context, obj interface{}) (model.UpdateUser, error) {
+	var it model.UpdateUser
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
+
+	for k, v := range asMap {
+		switch k {
+		case "id":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+			it.ID, err = ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "name":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			it.Name, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "lastName":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("lastName"))
+			it.LastName, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "username":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("username"))
+			it.Username, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "password":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("password"))
+			it.Password, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "admin":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("admin"))
+			it.Admin, err = ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "root":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("root"))
+			it.Root, err = ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "verified":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("verified"))
+			it.Verified, err = ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "reported":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("reported"))
+			it.Reported, err = ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "reportReason":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("reportReason"))
+			it.ReportReason, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "activeContract":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("activeContract"))
+			it.ActiveContract, err = ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "admissionDay":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("admissionDay"))
+			it.AdmissionDay, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "unemploymentDay":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("unemploymentDay"))
+			it.UnemploymentDay, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "workedHours":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("workedHours"))
+			it.WorkedHours, err = ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "currentBranch":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("currentBranch"))
+			it.CurrentBranch, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "originBranch":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("originBranch"))
+			it.OriginBranch, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "monetaryBonds":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("monetaryBonds"))
+			it.MonetaryBonds, err = ec.unmarshalOFloat2ᚖfloat64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "monetaryDiscounts":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("monetaryDiscounts"))
+			it.MonetaryDiscounts, err = ec.unmarshalOFloat2ᚖfloat64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "mail":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("mail"))
+			it.Mail, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "alternativeMails":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("alternativeMails"))
+			it.AlternativeMails, err = ec.unmarshalOString2ᚕᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "phone":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("phone"))
+			it.Phone, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "alternativePhones":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("alternativePhones"))
+			it.AlternativePhones, err = ec.unmarshalOString2ᚕᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "address":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("address"))
+			it.Address, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "bornDay":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("bornDay"))
+			it.BornDay, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "degreeStudy":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("degreeStudy"))
+			it.DegreeStudy, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "relationShip":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("relationShip"))
+			it.RelationShip, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "curp":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("curp"))
+			it.Curp, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "citizenId":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("citizenId"))
+			it.CitizenID, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "credentialId":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("credentialId"))
+			it.CredentialID, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "originState":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("originState"))
+			it.OriginState, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "score":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("score"))
+			it.Score, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "qualities":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("qualities"))
+			it.Qualities, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "defects":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("defects"))
+			it.Defects, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "darktheme":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("darktheme"))
+			it.Darktheme, err = ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
 		}
 	}
 
@@ -4550,6 +5568,24 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_createUser(ctx, field)
+			})
+
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "updateUser":
+
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateUser(ctx, field)
+			})
+
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "delateUser":
+
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_delateUser(ctx, field)
 			})
 
 			if out.Values[i] == graphql.Null {
@@ -4625,6 +5661,46 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			out.Concurrently(i, func() graphql.Marshaler {
 				return rrm(innerCtx)
 			})
+		case "userById":
+			field := field
+
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_userById(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx, innerFunc)
+			}
+
+			out.Concurrently(i, func() graphql.Marshaler {
+				return rrm(innerCtx)
+			})
+		case "validateUser":
+			field := field
+
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_validateUser(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx, innerFunc)
+			}
+
+			out.Concurrently(i, func() graphql.Marshaler {
+				return rrm(innerCtx)
+			})
 		case "__type":
 
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
@@ -4677,16 +5753,10 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 
 			out.Values[i] = ec._User_username(ctx, field, obj)
 
-			if out.Values[i] == graphql.Null {
-				invalids++
-			}
 		case "password":
 
 			out.Values[i] = ec._User_password(ctx, field, obj)
 
-			if out.Values[i] == graphql.Null {
-				invalids++
-			}
 		case "admin":
 
 			out.Values[i] = ec._User_admin(ctx, field, obj)
@@ -4798,6 +5868,10 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 		case "defects":
 
 			out.Values[i] = ec._User_defects(ctx, field, obj)
+
+		case "darktheme":
+
+			out.Values[i] = ec._User_darktheme(ctx, field, obj)
 
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
@@ -5445,6 +6519,11 @@ func (ec *executionContext) marshalN__TypeKind2string(ctx context.Context, sel a
 	return res
 }
 
+func (ec *executionContext) unmarshalNupdateUser2githubᚗcomᚋLuisFlahan4051ᚋcarnitasᚑdonᚑjoseᚑapiᚑgraphqlᚋgraphᚋmodelᚐUpdateUser(ctx context.Context, v interface{}) (model.UpdateUser, error) {
+	res, err := ec.unmarshalInputupdateUser(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalOBoolean2bool(ctx context.Context, v interface{}) (bool, error) {
 	res, err := graphql.UnmarshalBoolean(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -5485,6 +6564,22 @@ func (ec *executionContext) marshalOFloat2ᚖfloat64(ctx context.Context, sel as
 	}
 	res := graphql.MarshalFloatContext(*v)
 	return graphql.WrapContextMarshaler(ctx, res)
+}
+
+func (ec *executionContext) unmarshalOID2ᚖstring(ctx context.Context, v interface{}) (*string, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := graphql.UnmarshalID(v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOID2ᚖstring(ctx context.Context, sel ast.SelectionSet, v *string) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	res := graphql.MarshalID(*v)
+	return res
 }
 
 func (ec *executionContext) unmarshalOInt2ᚖint(ctx context.Context, v interface{}) (*int, error) {
