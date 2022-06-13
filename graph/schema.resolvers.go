@@ -6,12 +6,16 @@ package graph
 import (
 	"context"
 	"log"
+	"reflect"
+	"strings"
 
+	"github.com/99designs/gqlgen/graphql"
 	"github.com/LuisFlahan4051/carnitas-don-jose-api-graphql/database"
 	"github.com/LuisFlahan4051/carnitas-don-jose-api-graphql/graph/generated"
 	"github.com/LuisFlahan4051/carnitas-don-jose-api-graphql/graph/model"
 	"github.com/LuisFlahan4051/carnitas-don-jose-api-graphql/ports"
 	"github.com/TwiN/go-color"
+	"github.com/mitchellh/mapstructure"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
@@ -20,9 +24,9 @@ func (r *mutationResolver) CreateUser(ctx context.Context, input model.NewUser) 
 	newUser := &model.User{
 		ID:                input.ID,
 		Name:              input.Name,
-		LastName:          input.LastName,
-		Username:          input.Username,
-		Password:          input.Password,
+		Lastname:          input.Lastname,
+		Username:          &input.Username,
+		Password:          &input.Password,
 		Admin:             input.Admin,
 		Root:              input.Root,
 		Verified:          input.Verified,
@@ -64,100 +68,32 @@ func (r *mutationResolver) CreateUser(ctx context.Context, input model.NewUser) 
 	return newUser, nil
 }
 
-func (r *mutationResolver) UpdateUser(ctx context.Context, input model.UpdateUser) (*model.User, error) {
+func (r *mutationResolver) UpdateUser(ctx context.Context, id *string, changes map[string]interface{}) (*model.User, error) {
 	collection := db.Client.Database("carnitas-don-jose-db").Collection("Users")
 	bsonFilter := bson.M{
-		"id": input.ID,
+		"id": id,
 	}
-
-	update := &model.User{
-		Name:              input.Name,
-		LastName:          input.LastName,
-		Username:          input.Username,
-		Password:          input.Password,
-		Admin:             input.Admin,
-		Root:              input.Root,
-		Verified:          input.Verified,
-		Reported:          input.Reported,
-		ReportReason:      input.ReportReason,
-		ActiveContract:    input.ActiveContract,
-		AdmissionDay:      input.AdmissionDay,
-		UnemploymentDay:   input.UnemploymentDay,
-		WorkedHours:       input.WorkedHours,
-		CurrentBranch:     input.CurrentBranch,
-		OriginBranch:      input.OriginBranch,
-		MonetaryBonds:     input.MonetaryBonds,
-		MonetaryDiscounts: input.MonetaryDiscounts,
-		Mail:              input.Mail,
-		AlternativeMails:  input.AlternativeMails,
-		Phone:             input.Phone,
-		AlternativePhones: input.AlternativePhones,
-		Address:           input.Address,
-		BornDay:           input.BornDay,
-		DegreeStudy:       input.DegreeStudy,
-		RelationShip:      input.RelationShip,
-		Curp:              input.Curp,
-		CitizenID:         input.CitizenID,
-		CredentialID:      input.CredentialID,
-		OriginState:       input.OriginState,
-		Score:             input.Score,
-		Qualities:         input.Qualities,
-		Defects:           input.Defects,
-		Darktheme:         input.Darktheme,
-	}
-	// bsonUpdate := bson.M{"$set": bson.M{
-	// 	"name":              input.Name,
-	// 	"lastName":          input.LastName,
-	// 	"username":          input.Username,
-	// 	"password":          input.Password,
-	// 	"admin":             input.Admin,
-	// 	"root":              input.Root,
-	// 	"verified":          input.Verified,
-	// 	"reported":          input.Reported,
-	// 	"reportReason":      input.ReportReason,
-	// 	"activeContract":    input.ActiveContract,
-	// 	"admissionDay":      input.AdmissionDay,
-	// 	"unemploymentDay":   input.UnemploymentDay,
-	// 	"workedHours":       input.WorkedHours,
-	// 	"currentBranch":     input.CurrentBranch,
-	// 	"originBranch":      input.OriginBranch,
-	// 	"monetaryBonds":     input.MonetaryBonds,
-	// 	"monetaryDiscounts": input.MonetaryDiscounts,
-	// 	"mail":              input.Mail,
-	// 	"alternativeMails":  input.AlternativeMails,
-	// 	"phone":             input.Phone,
-	// 	"alternativePhones": input.AlternativePhones,
-	// 	"address":           input.Address,
-	// 	"bornDay":           input.BornDay,
-	// 	"degreeStudy":       input.DegreeStudy,
-	// 	"relationShip":      input.RelationShip,
-	// 	"curp":              input.Curp,
-	// 	"citizenId":         input.CitizenID,
-	// 	"credentialId":      input.CredentialID,
-	// 	"originState":       input.OriginState,
-	// 	"score":             input.Score,
-	// 	"qualities":         input.Qualities,
-	// 	"defects":           input.Defects,
-	// 	"darktheme":         input.Darktheme,
-	// }}
-
-	updating, err := collection.UpdateOne(context.TODO(), bsonFilter, update)
-
+	toChange := &model.User{}
+	applyChanges(changes, toChange)
+	updating, err := collection.UpdateOne(context.TODO(), bsonFilter, bson.M{"$set": changes})
+	catch(err)
+	userChanged := collection.FindOne(context.TODO(), bsonFilter)
+	err = userChanged.Decode(toChange)
 	catch(err)
 	if err == nil {
 		log.Println(color.Ize(color.Cyan, "Update Correctly!"))
 		log.Printf("%v", *updating)
 	}
 
-	return update, nil
+	return toChange, nil
 }
 
-func (r *mutationResolver) DelateUser(ctx context.Context, input model.UpdateUser) (*model.User, error) {
+func (r *mutationResolver) DelateUser(ctx context.Context, input model.DelateUser) (*model.User, error) {
 	collection := db.Client.Database("carnitas-don-jose-db").Collection("Users")
 
 	filter := &model.User{
-		ID:       input.ID,
-		Username: &input.Username,
+		ID:       *input.ID,
+		Username: input.Username,
 		Password: input.Password,
 	}
 	bsonFilter := bson.M{
@@ -223,12 +159,15 @@ func (r *queryResolver) UserByID(ctx context.Context, id *string) (*model.User, 
 }
 
 func (r *queryResolver) ValidateUser(ctx context.Context, username *string, password *string) (*bool, error) {
+	var answer bool = false
 	collection := db.Client.Database("carnitas-don-jose-db").Collection("Users")
+	mainKey := strings.TrimSpace(*username)
+	log.Println(mainKey)
 
 	filter := bson.D{
 		{
 			Key:   "username",
-			Value: username,
+			Value: mainKey,
 		},
 		{
 			Key:   "password",
@@ -237,15 +176,44 @@ func (r *queryResolver) ValidateUser(ctx context.Context, username *string, pass
 	}
 
 	query := collection.FindOne(context.TODO(), filter)
-	var user *model.User
-	err := query.Decode(&user)
 
-	var answer bool = false
-	if user.ID != "" {
+	if query.Err() == nil {
+		answer = true
+		return &answer, query.Err()
+	}
+	filter = bson.D{
+		{
+			Key:   "mail",
+			Value: mainKey,
+		},
+		{
+			Key:   "password",
+			Value: password,
+		},
+	}
+	query = collection.FindOne(context.TODO(), filter)
+
+	if query.Err() == nil {
+		answer = true
+		return &answer, query.Err()
+	}
+
+	filter = bson.D{
+		{
+			Key:   "phone",
+			Value: mainKey,
+		},
+		{
+			Key:   "password",
+			Value: password,
+		},
+	}
+	query = collection.FindOne(context.TODO(), filter)
+	if query.Err() == nil {
 		answer = true
 	}
 
-	return &answer, err
+	return &answer, query.Err()
 }
 
 // Mutation returns generated.MutationResolver implementation.
@@ -263,6 +231,32 @@ type queryResolver struct{ *Resolver }
 //  - When renaming or deleting a resolver the old code will be put in here. You can safely delete
 //    it when you're done.
 //  - You have helper methods in this file. Move them out to keep these resolver files clean.
+func applyChanges(changes map[string]interface{}, to interface{}) error {
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		ErrorUnused: true,
+		TagName:     "json",
+		Result:      to,
+		ZeroFields:  true,
+		// This is needed to get mapstructure to call the gqlgen unmarshaler func for custom scalars (eg Date)
+		DecodeHook: func(a reflect.Type, b reflect.Type, v interface{}) (interface{}, error) {
+			if reflect.PtrTo(b).Implements(reflect.TypeOf((*graphql.Unmarshaler)(nil)).Elem()) {
+				resultType := reflect.New(b)
+				result := resultType.MethodByName("UnmarshalGQL").Call([]reflect.Value{reflect.ValueOf(v)})
+				err, _ := result[0].Interface().(error)
+				return resultType.Elem().Interface(), err
+			}
+
+			return v, nil
+		},
+	})
+
+	if err != nil {
+		return err
+	}
+
+	return dec.Decode(changes)
+}
+
 var db = database.Connect(ports.DEFAULTPORT_DB, ports.DEFAULTHOST_DB)
 
 func catch(err error) {

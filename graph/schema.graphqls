@@ -6,7 +6,7 @@
 type User {
   id: ID!
   name: String
-  lastName: String
+  lastname: String
   username: String
   password: String
   admin: Boolean
@@ -57,7 +57,7 @@ type Query {
 input NewUser {
   id: ID!
   name: String
-  lastName: String
+  lastname: String
   username: String!
   password: String!
   admin: Boolean
@@ -94,13 +94,18 @@ input NewUser {
 
   darktheme: Boolean 
 }
+input delateUser{
+  id: ID
+  username: String
+  password: String
+}
 
-input updateUser{
-  id: ID!
+input changeUser{
+  id: ID
   name: String
-  lastName: String
-  username: String!
-  password: String!
+  lastname: String
+  username: String
+  password: String
   admin: Boolean
   root: Boolean
   verified: Boolean
@@ -138,8 +143,8 @@ input updateUser{
 
 type Mutation {
   createUser(input: NewUser!): User!
-  updateUser(input: updateUser!): User!
-  delateUser(input: updateUser!): User!
+  updateUser(id:ID, changes: changeUser!): User!
+  delateUser(input: delateUser!): User!
 }
 
 # ------------------------------------------------------------------------------
