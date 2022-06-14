@@ -56,6 +56,7 @@ func (r *mutationResolver) CreateUser(ctx context.Context, input model.NewUser) 
 		Qualities:         input.Qualities,
 		Defects:           input.Defects,
 		Darktheme:         input.Darktheme,
+		ProfilePicture:    input.ProfilePicture,
 	}
 	insertion, err := collection.InsertOne(context.TODO(), newUser)
 
@@ -159,61 +160,8 @@ func (r *queryResolver) UserByID(ctx context.Context, id *string) (*model.User, 
 }
 
 func (r *queryResolver) ValidateUser(ctx context.Context, username *string, password *string) (*bool, error) {
-	var answer bool = false
-	collection := db.Client.Database("carnitas-don-jose-db").Collection("Users")
-	mainKey := strings.TrimSpace(*username)
-	log.Println(mainKey)
-
-	filter := bson.D{
-		{
-			Key:   "username",
-			Value: mainKey,
-		},
-		{
-			Key:   "password",
-			Value: password,
-		},
-	}
-
-	query := collection.FindOne(context.TODO(), filter)
-
-	if query.Err() == nil {
-		answer = true
-		return &answer, query.Err()
-	}
-	filter = bson.D{
-		{
-			Key:   "mail",
-			Value: mainKey,
-		},
-		{
-			Key:   "password",
-			Value: password,
-		},
-	}
-	query = collection.FindOne(context.TODO(), filter)
-
-	if query.Err() == nil {
-		answer = true
-		return &answer, query.Err()
-	}
-
-	filter = bson.D{
-		{
-			Key:   "phone",
-			Value: mainKey,
-		},
-		{
-			Key:   "password",
-			Value: password,
-		},
-	}
-	query = collection.FindOne(context.TODO(), filter)
-	if query.Err() == nil {
-		answer = true
-	}
-
-	return &answer, query.Err()
+	answer, err := userExists(ctx, username, password)
+	return &answer, err
 }
 
 // Mutation returns generated.MutationResolver implementation.
@@ -263,4 +211,66 @@ func catch(err error) {
 	if err != nil {
 		log.Fatal(color.Ize(color.Red, err.Error()))
 	}
+}
+func cleanSpaces(stringToClean string) string {
+	result := strings.ReplaceAll(stringToClean, " ", "")
+	log.Println(result)
+	return result
+}
+func userExists(ctx context.Context, username *string, password *string) (bool, error) {
+	var answer bool = false
+	collection := db.Client.Database("carnitas-don-jose-db").Collection("Users")
+
+	mainKey := cleanSpaces(*username)
+
+	filter := bson.D{
+		{
+			Key:   "username",
+			Value: mainKey,
+		},
+		{
+			Key:   "password",
+			Value: password,
+		},
+	}
+
+	query := collection.FindOne(context.TODO(), filter)
+
+	if query.Err() == nil {
+		answer = true
+		return answer, query.Err()
+	}
+	filter = bson.D{
+		{
+			Key:   "mail",
+			Value: mainKey,
+		},
+		{
+			Key:   "password",
+			Value: password,
+		},
+	}
+	query = collection.FindOne(context.TODO(), filter)
+
+	if query.Err() == nil {
+		answer = true
+		return answer, query.Err()
+	}
+
+	filter = bson.D{
+		{
+			Key:   "phone",
+			Value: mainKey,
+		},
+		{
+			Key:   "password",
+			Value: password,
+		},
+	}
+	query = collection.FindOne(context.TODO(), filter)
+	if query.Err() == nil {
+		answer = true
+	}
+
+	return answer, query.Err()
 }

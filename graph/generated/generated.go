@@ -81,6 +81,7 @@ type ComplexityRoot struct {
 		OriginState       func(childComplexity int) int
 		Password          func(childComplexity int) int
 		Phone             func(childComplexity int) int
+		ProfilePicture    func(childComplexity int) int
 		Qualities         func(childComplexity int) int
 		RelationShip      func(childComplexity int) int
 		ReportReason      func(childComplexity int) int
@@ -368,6 +369,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.User.Phone(childComplexity), true
 
+	case "User.profilePicture":
+		if e.complexity.User.ProfilePicture == nil {
+			break
+		}
+
+		return e.complexity.User.ProfilePicture(childComplexity), true
+
 	case "User.qualities":
 		if e.complexity.User.Qualities == nil {
 			break
@@ -513,6 +521,8 @@ var sources = []*ast.Source{
 # https://gqlgen.com/getting-started/
 # go run github.com/99designs/gqlgen generate
 
+scalar Upload
+
 type User {
   id: ID!
   name: String
@@ -551,18 +561,11 @@ type User {
   qualities: String
   defects: String
 
-  darktheme: Boolean 
+  darktheme: Boolean
+  profilePicture: Upload
 }
 
-type Query {
-  users: [User]
-  userByUsername(username: String): User
-  userById(id: ID): User
-  validateUser(
-    username: String
-    password: String
-  ): Boolean
-}
+
 
 input NewUser {
   id: ID!
@@ -602,7 +605,8 @@ input NewUser {
   qualities: String
   defects: String
 
-  darktheme: Boolean 
+  darktheme: Boolean
+  profilePicture: Upload 
 }
 input delateUser{
   id: ID
@@ -648,7 +652,20 @@ input changeUser{
   qualities: String
   defects: String
 
-  darktheme: Boolean 
+  darktheme: Boolean
+  profilePicture: Upload 
+}
+
+
+
+type Query {
+  users: [User]
+  userByUsername(username: String): User
+  userById(id: ID): User
+  validateUser(
+    username: String
+    password: String
+  ): Boolean
 }
 
 type Mutation {
@@ -1003,6 +1020,8 @@ func (ec *executionContext) fieldContext_Mutation_createUser(ctx context.Context
 				return ec.fieldContext_User_defects(ctx, field)
 			case "darktheme":
 				return ec.fieldContext_User_darktheme(ctx, field)
+			case "profilePicture":
+				return ec.fieldContext_User_profilePicture(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -1128,6 +1147,8 @@ func (ec *executionContext) fieldContext_Mutation_updateUser(ctx context.Context
 				return ec.fieldContext_User_defects(ctx, field)
 			case "darktheme":
 				return ec.fieldContext_User_darktheme(ctx, field)
+			case "profilePicture":
+				return ec.fieldContext_User_profilePicture(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -1253,6 +1274,8 @@ func (ec *executionContext) fieldContext_Mutation_delateUser(ctx context.Context
 				return ec.fieldContext_User_defects(ctx, field)
 			case "darktheme":
 				return ec.fieldContext_User_darktheme(ctx, field)
+			case "profilePicture":
+				return ec.fieldContext_User_profilePicture(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -1375,6 +1398,8 @@ func (ec *executionContext) fieldContext_Query_users(ctx context.Context, field 
 				return ec.fieldContext_User_defects(ctx, field)
 			case "darktheme":
 				return ec.fieldContext_User_darktheme(ctx, field)
+			case "profilePicture":
+				return ec.fieldContext_User_profilePicture(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -1486,6 +1511,8 @@ func (ec *executionContext) fieldContext_Query_userByUsername(ctx context.Contex
 				return ec.fieldContext_User_defects(ctx, field)
 			case "darktheme":
 				return ec.fieldContext_User_darktheme(ctx, field)
+			case "profilePicture":
+				return ec.fieldContext_User_profilePicture(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -1608,6 +1635,8 @@ func (ec *executionContext) fieldContext_Query_userById(ctx context.Context, fie
 				return ec.fieldContext_User_defects(ctx, field)
 			case "darktheme":
 				return ec.fieldContext_User_darktheme(ctx, field)
+			case "profilePicture":
+				return ec.fieldContext_User_profilePicture(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -3199,6 +3228,47 @@ func (ec *executionContext) fieldContext_User_darktheme(ctx context.Context, fie
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _User_profilePicture(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_User_profilePicture(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ProfilePicture, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*graphql.Upload)
+	fc.Result = res
+	return ec.marshalOUpload2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚐUpload(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_User_profilePicture(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Upload does not have child fields")
 		},
 	}
 	return fc, nil
@@ -5258,6 +5328,14 @@ func (ec *executionContext) unmarshalInputNewUser(ctx context.Context, obj inter
 			if err != nil {
 				return it, err
 			}
+		case "profilePicture":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("profilePicture"))
+			it.ProfilePicture, err = ec.unmarshalOUpload2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚐUpload(ctx, v)
+			if err != nil {
+				return it, err
+			}
 		}
 	}
 
@@ -5638,6 +5716,10 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 		case "darktheme":
 
 			out.Values[i] = ec._User_darktheme(ctx, field, obj)
+
+		case "profilePicture":
+
+			out.Values[i] = ec._User_profilePicture(ctx, field, obj)
 
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
@@ -6413,6 +6495,22 @@ func (ec *executionContext) marshalOString2ᚖstring(ctx context.Context, sel as
 		return graphql.Null
 	}
 	res := graphql.MarshalString(*v)
+	return res
+}
+
+func (ec *executionContext) unmarshalOUpload2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚐUpload(ctx context.Context, v interface{}) (*graphql.Upload, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := graphql.UnmarshalUpload(v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOUpload2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚐUpload(ctx context.Context, sel ast.SelectionSet, v *graphql.Upload) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	res := graphql.MarshalUpload(*v)
 	return res
 }
 

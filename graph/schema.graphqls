@@ -3,6 +3,8 @@
 # https://gqlgen.com/getting-started/
 # go run github.com/99designs/gqlgen generate
 
+scalar Upload
+
 type User {
   id: ID!
   name: String
@@ -41,18 +43,11 @@ type User {
   qualities: String
   defects: String
 
-  darktheme: Boolean 
+  darktheme: Boolean
+  profilePicture: Upload
 }
 
-type Query {
-  users: [User]
-  userByUsername(username: String): User
-  userById(id: ID): User
-  validateUser(
-    username: String
-    password: String
-  ): Boolean
-}
+
 
 input NewUser {
   id: ID!
@@ -92,7 +87,8 @@ input NewUser {
   qualities: String
   defects: String
 
-  darktheme: Boolean 
+  darktheme: Boolean
+  profilePicture: Upload 
 }
 input delateUser{
   id: ID
@@ -138,7 +134,20 @@ input changeUser{
   qualities: String
   defects: String
 
-  darktheme: Boolean 
+  darktheme: Boolean
+  profilePicture: Upload 
+}
+
+
+
+type Query {
+  users: [User]
+  userByUsername(username: String): User
+  userById(id: ID): User
+  validateUser(
+    username: String
+    password: String
+  ): Boolean
 }
 
 type Mutation {
