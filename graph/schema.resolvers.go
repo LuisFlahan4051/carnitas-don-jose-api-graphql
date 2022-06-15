@@ -7,6 +7,7 @@ import (
 	"context"
 	"log"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/99designs/gqlgen/graphql"
@@ -159,7 +160,7 @@ func (r *queryResolver) UserByID(ctx context.Context, id *string) (*model.User, 
 	return user, err
 }
 
-func (r *queryResolver) ValidateUser(ctx context.Context, username *string, password *string) (*bool, error) {
+func (r *queryResolver) ValidateUser(ctx context.Context, username *string, password *string) (*string, error) {
 	answer, err := userExists(ctx, username, password)
 	return &answer, err
 }
@@ -209,68 +210,98 @@ var db = database.Connect(ports.DEFAULTPORT_DB, ports.DEFAULTHOST_DB)
 
 func catch(err error) {
 	if err != nil {
-		log.Fatal(color.Ize(color.Red, err.Error()))
+		log.Println(color.Ize(color.Red, err.Error()))
 	}
 }
 func cleanSpaces(stringToClean string) string {
 	result := strings.ReplaceAll(stringToClean, " ", "")
-	log.Println(result)
 	return result
 }
-func userExists(ctx context.Context, username *string, password *string) (bool, error) {
-	var answer bool = false
+
+func isANumber(input string) bool {
+	_, err := strconv.Atoi(input)
+	if err != nil {
+		return false
+	} else {
+		return true
+	}
+}
+
+func isAMail(input string) bool {
+	if strings.Contains(input, "@") {
+		return true
+	} else {
+		return false
+	}
+}
+
+func userExists(ctx context.Context, username *string, password *string) (string, error) {
+	var user *model.User
 	collection := db.Client.Database("carnitas-don-jose-db").Collection("Users")
 
 	mainKey := cleanSpaces(*username)
+
+	if isANumber(mainKey) {
+		filter := bson.D{
+			{
+				Key:   "phone",
+				Value: mainKey,
+			},
+		}
+		query := collection.FindOne(context.TODO(), filter)
+		catch(query.Err())
+		if query.Err() != nil {
+			return "UserDoesNotExist", nil
+		}
+
+		err := query.Decode(&user)
+		catch(err)
+		if err == nil && *user.Password == *password {
+			return user.ID, err
+		} else {
+			return "IncorrectPassword", err
+		}
+	}
+
+	if isAMail(mainKey) {
+		filter := bson.D{
+			{
+				Key:   "mail",
+				Value: mainKey,
+			},
+		}
+		query := collection.FindOne(context.TODO(), filter)
+		catch(query.Err())
+		if query.Err() != nil {
+			return "UserDoesNotExist", nil
+		}
+
+		err := query.Decode(&user)
+		catch(err)
+		if err == nil && *user.Password == *password {
+			return user.ID, err
+		} else {
+			return "IncorrectPassword", err
+		}
+	}
 
 	filter := bson.D{
 		{
 			Key:   "username",
 			Value: mainKey,
 		},
-		{
-			Key:   "password",
-			Value: password,
-		},
 	}
-
 	query := collection.FindOne(context.TODO(), filter)
-
-	if query.Err() == nil {
-		answer = true
-		return answer, query.Err()
-	}
-	filter = bson.D{
-		{
-			Key:   "mail",
-			Value: mainKey,
-		},
-		{
-			Key:   "password",
-			Value: password,
-		},
-	}
-	query = collection.FindOne(context.TODO(), filter)
-
-	if query.Err() == nil {
-		answer = true
-		return answer, query.Err()
+	catch(query.Err())
+	if query.Err() != nil {
+		return "UserDoesNotExist", nil
 	}
 
-	filter = bson.D{
-		{
-			Key:   "phone",
-			Value: mainKey,
-		},
-		{
-			Key:   "password",
-			Value: password,
-		},
+	err := query.Decode(&user)
+	catch(err)
+	if err == nil && *user.Password == *password {
+		return user.ID, err
+	} else {
+		return "IncorrectPassword", err
 	}
-	query = collection.FindOne(context.TODO(), filter)
-	if query.Err() == nil {
-		answer = true
-	}
-
-	return answer, query.Err()
 }

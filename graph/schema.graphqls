@@ -147,12 +147,12 @@ type Query {
   validateUser(
     username: String
     password: String
-  ): Boolean
+  ): String
 }
 
 type Mutation {
   createUser(input: NewUser!): User!
-  updateUser(id:ID, changes: changeUser!): User!
+  updateUser(id:ID, changes: changeUser!): Boolean!
   delateUser(input: delateUser!): User!
 }
 

@@ -104,7 +104,7 @@ type QueryResolver interface {
 	Users(ctx context.Context) ([]*model.User, error)
 	UserByUsername(ctx context.Context, username *string) (*model.User, error)
 	UserByID(ctx context.Context, id *string) (*model.User, error)
-	ValidateUser(ctx context.Context, username *string, password *string) (*bool, error)
+	ValidateUser(ctx context.Context, username *string, password *string) (*string, error)
 }
 
 type executableSchema struct {
@@ -665,7 +665,7 @@ type Query {
   validateUser(
     username: String
     password: String
-  ): Boolean
+  ): String
 }
 
 type Mutation {
@@ -1678,9 +1678,9 @@ func (ec *executionContext) _Query_validateUser(ctx context.Context, field graph
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(*bool)
+	res := resTmp.(*string)
 	fc.Result = res
-	return ec.marshalOBoolean2ᚖbool(ctx, field.Selections, res)
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Query_validateUser(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -1690,7 +1690,7 @@ func (ec *executionContext) fieldContext_Query_validateUser(ctx context.Context,
 		IsMethod:   true,
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	defer func() {
