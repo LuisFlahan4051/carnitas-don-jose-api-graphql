@@ -18,16 +18,19 @@ import (
 	"github.com/TwiN/go-color"
 	"github.com/mitchellh/mapstructure"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 func (r *mutationResolver) CreateUser(ctx context.Context, input model.NewUser) (*model.User, error) {
 	collection := db.Client.Database("carnitas-don-jose-db").Collection("Users")
+	username := cleanSpaces(input.Username)
+	password := cleanSpaces(input.Password)
 	newUser := &model.User{
 		ID:                input.ID,
 		Name:              input.Name,
 		Lastname:          input.Lastname,
-		Username:          &input.Username,
-		Password:          &input.Password,
+		Username:          &username,
+		Password:          &password,
 		Admin:             input.Admin,
 		Root:              input.Root,
 		Verified:          input.Verified,
@@ -70,13 +73,14 @@ func (r *mutationResolver) CreateUser(ctx context.Context, input model.NewUser) 
 	return newUser, nil
 }
 
-func (r *mutationResolver) UpdateUser(ctx context.Context, id *string, changes map[string]interface{}) (*model.User, error) {
+func (r *mutationResolver) UpdateAndGetUser(ctx context.Context, id *string, changes map[string]interface{}) (*model.User, error) {
 	collection := db.Client.Database("carnitas-don-jose-db").Collection("Users")
 	bsonFilter := bson.M{
 		"id": id,
 	}
 	toChange := &model.User{}
-	applyChanges(changes, toChange)
+	err := applyChanges(changes, toChange)
+	catch(err)
 	updating, err := collection.UpdateOne(context.TODO(), bsonFilter, bson.M{"$set": changes})
 	catch(err)
 	userChanged := collection.FindOne(context.TODO(), bsonFilter)
@@ -90,33 +94,61 @@ func (r *mutationResolver) UpdateUser(ctx context.Context, id *string, changes m
 	return toChange, nil
 }
 
-func (r *mutationResolver) DelateUser(ctx context.Context, input model.DelateUser) (*model.User, error) {
+func (r *mutationResolver) UpdateUser(ctx context.Context, id *string, changes map[string]interface{}) (bool, error) {
+	collection := db.Client.Database("carnitas-don-jose-db").Collection("Users")
+	bsonFilter := bson.M{
+		"id": id,
+	}
+	toChange := &model.User{}
+	err := applyChanges(changes, toChange)
+	catch(err)
+	updating, err := collection.UpdateOne(context.TODO(), bsonFilter, bson.M{"$set": changes})
+	catch(err)
+	if updating.ModifiedCount == 1 {
+		log.Println(color.Ize(color.Cyan, "Update Correctly!"))
+		log.Printf("%v", *updating)
+		return true, nil
+	}
+	return false, nil
+}
+
+func (r *mutationResolver) DelateUser(ctx context.Context, id string, username string, password string) (bool, error) {
 	collection := db.Client.Database("carnitas-don-jose-db").Collection("Users")
 
-	filter := &model.User{
-		ID:       *input.ID,
-		Username: input.Username,
-		Password: input.Password,
+	exists, err := userExists(ctx, &username, &password)
+	switch exists {
+	case "UserDoesNotExist":
+		return false, err
+	case "IncorrectPassword":
+		return false, err
 	}
+
 	bsonFilter := bson.M{
-		"id":       input.ID,
-		"username": input.Username,
-		"password": input.Password,
+		"id":       cleanSpaces(id),
+		"username": cleanSpaces(username),
+		"password": cleanSpaces(password),
 	}
 
 	delete, err := collection.DeleteOne(context.TODO(), bsonFilter)
 	catch(err)
 	if err == nil {
 		log.Println(color.Ize(color.Cyan, "Delete Correctly!"))
-		log.Printf("bson:\n %v, %v", bsonFilter, delete)
+		log.Printf("bson:\n %v", delete)
+		return true, err
 	}
 
-	return filter, err
+	return false, err
 }
 
 func (r *queryResolver) Users(ctx context.Context) ([]*model.User, error) {
 	collection := db.Client.Database("carnitas-don-jose-db").Collection("Users")
-	iterator, err := collection.Find(context.TODO(), bson.D{})
+	iterator, err := collection.Find(context.TODO(), bson.D{}, options.Find().SetSort(bson.D{
+		{
+			Key:   "username",
+			Value: 1,
+		},
+	}))
+
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -137,7 +169,7 @@ func (r *queryResolver) UserByUsername(ctx context.Context, username *string) (*
 	filter := bson.D{
 		{
 			Key:   "username",
-			Value: username,
+			Value: cleanSpaces(*username),
 		},
 	}
 	query := collection.FindOne(context.TODO(), filter)
@@ -151,7 +183,7 @@ func (r *queryResolver) UserByID(ctx context.Context, id *string) (*model.User, 
 	filter := bson.D{
 		{
 			Key:   "id",
-			Value: id,
+			Value: cleanSpaces(*id),
 		},
 	}
 	query := collection.FindOne(context.TODO(), filter)
@@ -217,7 +249,6 @@ func cleanSpaces(stringToClean string) string {
 	result := strings.ReplaceAll(stringToClean, " ", "")
 	return result
 }
-
 func isANumber(input string) bool {
 	_, err := strconv.Atoi(input)
 	if err != nil {
@@ -226,7 +257,6 @@ func isANumber(input string) bool {
 		return true
 	}
 }
-
 func isAMail(input string) bool {
 	if strings.Contains(input, "@") {
 		return true
@@ -234,56 +264,11 @@ func isAMail(input string) bool {
 		return false
 	}
 }
-
 func userExists(ctx context.Context, username *string, password *string) (string, error) {
 	var user *model.User
 	collection := db.Client.Database("carnitas-don-jose-db").Collection("Users")
 
 	mainKey := cleanSpaces(*username)
-
-	if isANumber(mainKey) {
-		filter := bson.D{
-			{
-				Key:   "phone",
-				Value: mainKey,
-			},
-		}
-		query := collection.FindOne(context.TODO(), filter)
-		catch(query.Err())
-		if query.Err() != nil {
-			return "UserDoesNotExist", nil
-		}
-
-		err := query.Decode(&user)
-		catch(err)
-		if err == nil && *user.Password == *password {
-			return user.ID, err
-		} else {
-			return "IncorrectPassword", err
-		}
-	}
-
-	if isAMail(mainKey) {
-		filter := bson.D{
-			{
-				Key:   "mail",
-				Value: mainKey,
-			},
-		}
-		query := collection.FindOne(context.TODO(), filter)
-		catch(query.Err())
-		if query.Err() != nil {
-			return "UserDoesNotExist", nil
-		}
-
-		err := query.Decode(&user)
-		catch(err)
-		if err == nil && *user.Password == *password {
-			return user.ID, err
-		} else {
-			return "IncorrectPassword", err
-		}
-	}
 
 	filter := bson.D{
 		{
@@ -291,6 +276,25 @@ func userExists(ctx context.Context, username *string, password *string) (string
 			Value: mainKey,
 		},
 	}
+
+	if isANumber(mainKey) {
+		filter = bson.D{
+			{
+				Key:   "phone",
+				Value: mainKey,
+			},
+		}
+	}
+
+	if isAMail(mainKey) {
+		filter = bson.D{
+			{
+				Key:   "mail",
+				Value: mainKey,
+			},
+		}
+	}
+
 	query := collection.FindOne(context.TODO(), filter)
 	catch(query.Err())
 	if query.Err() != nil {
@@ -299,7 +303,7 @@ func userExists(ctx context.Context, username *string, password *string) (string
 
 	err := query.Decode(&user)
 	catch(err)
-	if err == nil && *user.Password == *password {
+	if err == nil && *user.Password == cleanSpaces(*password) {
 		return user.ID, err
 	} else {
 		return "IncorrectPassword", err

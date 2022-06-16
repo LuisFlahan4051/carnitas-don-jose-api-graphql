@@ -152,8 +152,9 @@ type Query {
 
 type Mutation {
   createUser(input: NewUser!): User!
+  updateAndGetUser(id:ID, changes: changeUser!): User!
   updateUser(id:ID, changes: changeUser!): Boolean!
-  delateUser(input: delateUser!): User!
+  delateUser(id:ID!, username: String!, password: String!): Boolean!
 }
 
 # ------------------------------------------------------------------------------
